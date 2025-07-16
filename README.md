@@ -1,5 +1,14 @@
-# README
+## A Principled Framework for Comparing Variable Importance Measures (VIMs)
 
-This github repository contains the code of "What Makes a Good Variable Importance Measure? AMinimal Axiomatic Approach".
+This repository contains the code accompanying the paper _“A Principled Framework for Comparing Variable Importance Measures”_. In this work, we address two key questions:
 
-Most feature importance methods were computed by the Python fippy package by Gunnar König ([https://github.com/gcskoenig/fippy.git](https://github.com/gcskoenig/fippy.git)).
+- **What makes a good Variable Importance Measure (VIM)?**
+- **How can we compare different VIMs in a principled way?**
+
+### Repository Structure
+
+- `src/` – Code to run all experiments.
+- `results/` – Contains:
+  - CSV files with experimental results  
+  - Code to generate figures  
+  - The final figures used in the paper
