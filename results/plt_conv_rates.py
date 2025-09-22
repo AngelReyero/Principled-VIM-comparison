@@ -190,6 +190,8 @@ def main():
         method: (4, 2) if method in dashed_methods else (None,None)  # (on, off) pattern for dashed
         for method in df['method'].unique()
 }
+    ax0.axhline(0, color='black', linewidth=1)
+
     # Plot for imp_V0 (subplot 1)
     sns.lineplot(data=df, x='n_samples', y='imp_V0', hue='method', palette=palette, ax=ax0, style='method',dashes=dashes)
     #th_cv_v0 = theoretical_curve(y_method, 0, cor, p, beta=[2, 1])
@@ -200,8 +202,9 @@ def main():
     ax0.set_xlabel('')
     ax0.set_ylabel(f'Importance of $X_0$', fontsize=25)
     ax0.legend().remove()
-
+    ax0.set_ylim(-0.3, 0.5)
     
+    ax1.axhline(0, color='black', linewidth=1)
     # Plot for imp_V2 (subplot 0)
     sns.lineplot(data=df, x='n_samples', y='imp_V2', hue='method',style='method', palette=palette,dashes=dashes, ax=ax1)
     #th_cv_v0 = theoretical_curve(y_method, 0, cor, p, beta=[2, 1])
@@ -212,6 +215,7 @@ def main():
     ax1.set_xlabel('')
     ax1.set_ylabel(f'Importance of $X_2$', fontsize=25)
     ax1.legend(title='Method',  loc='upper right', fontsize=16, title_fontsize=18, ncol=1, bbox_to_anchor=(1.55, 1))#bbox_to_anchor=(1.05, 1),
+    ax1.set_ylim(-0.3, 0.5)
 
     # Add common x-axis label
     fig.text(0.5, -0.02, 'Number of samples', ha='center', fontsize=25)
@@ -243,6 +247,8 @@ def main():
     methods_to_keep = ['Sobol-CPI(1)', 'Sobol-CPI(100)','CFI', 'scSAGEj', 'LOCO', 'LOCO-W']
     df_filtered = df[df['method'].isin(methods_to_keep)]
     # Plot for imp_V0 (subplot 1)
+    ax0.axhline(0, color='black', linewidth=1)
+
     sns.lineplot(data=df_filtered, x='n_samples', y='imp_V0', hue='method', palette=palette, ax=ax0)
     #th_cv_v0 = theoretical_curve(y_method, 0, cor, p, beta=[2, 1])
     #ax0.plot(n_samples, [th_cv_v0 for _ in n_samples], label=r"Theoretical", linestyle='--', linewidth=1, color="black")
@@ -251,8 +257,10 @@ def main():
     ax0.tick_params(axis='y', labelsize=18)
     ax0.set_xlabel('')
     ax0.set_ylabel(f'Importance of $X_0$', fontsize=25)
-    ax0.legend().remove()
 
+    ax0.legend().remove()
+    ax0.set_ylim(-0.1, 0.6)
+    ax1.axhline(0, color='black', linewidth=1)
 
     # Plot for null importance (subplot 2)
     sns.lineplot(data=df_filtered, x='n_samples', y='null_imp', hue='method', palette=palette, ax=ax1)
@@ -262,6 +270,7 @@ def main():
     ax1.set_xlabel('')
     ax1.set_ylabel('Bias null covariates', fontsize=25)
     ax1.legend(title='Method',  loc='upper right', fontsize=16, title_fontsize=18, ncol=1, bbox_to_anchor=(1.55, 1))#bbox_to_anchor=(1.05, 1),
+    ax1.set_ylim(-0.1, 0.6)
 
     # Add common x-axis label
     fig.text(0.5, -0.02, 'Number of samples', ha='center', fontsize=25)
