@@ -23,6 +23,28 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import make_pipeline
 
+from scipy.stats import norm, chi2
+from sklearn.datasets import make_friedman1
+from sklearn.linear_model import LinearRegression, Lasso
+from sklearn.tree import DecisionTreeRegressor
+from sklearn.ensemble import (
+    RandomForestRegressor,
+    ExtraTreesRegressor,
+    GradientBoostingRegressor,
+    HistGradientBoostingRegressor,
+    AdaBoostRegressor,
+    BaggingRegressor,
+    StackingRegressor
+)
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neural_network import MLPRegressor
+from sklearn.svm import SVR
+from xgboost import XGBRegressor
+from tabicl import TabICLRegressor
+
+# TabICLRegressor imported elsewhere
+
+
 
 def hypertune_predictor(estimator, X, y, param_grid, n_jobs=10):
     """
@@ -298,6 +320,19 @@ def simu_data(n, p, rho=0.25, snr=2.0, sparsity=0.06, effect=1.0, seed=None):
 
     return X, y, beta_true, non_zero
 
+def dgp_bivariatenormal(N=10000, cor = 0.9):
+    m = lambda x: x[:, 0] ** 2
+
+    x = np.random.multivariate_normal(
+        mean=[0, 0], cov=[[1, cor], [cor, 1]], size=N
+    )
+    data = pd.DataFrame(x, columns=["x1", "x2"])
+    data["y"] = m(data[["x1", "x2"]].values) + np.random.normal(0, 0.2, N)
+    X = data[["x1", "x2"]]
+    y = data["y"]
+
+    return X, y
+
 
 def GenToysDataset(n=1000, d=10, cor='toep', y_method="nonlin", k=2, mu=None, rho_toep=0.6, sparsity=0.1, seed=0, snr=2):
     """
@@ -422,6 +457,251 @@ def bootstrap_var(imp_list, n_groups=30, size_group=50):
 
 
 
+
+def generate_dataset(setting, n, cor=0.0, seed=0):
+    """
+    Generate synthetic datasets for PFI benchmarking.
+
+    Parameters
+    ----------
+    setting : str
+        One of:
+        - "gaussian_quad"
+        - "nongaussian_quad"
+        - "linear_sparse"
+        - "interaction_sparse"
+        - "friedman"
+        - "classification_lin"
+        - "classification_cplx"
+
+    n : int
+        Number of samples.
+
+    cor : float
+        Desired correlation level (used whenever applicable).
+
+    seed : int
+        Random seed.
+
+    Returns
+    -------
+    X : ndarray (n, p)
+    y : ndarray (n,)
+    true_imp : ndarray (p,)
+        Binary indicator of truly important variables.
+    task : str
+        "regression" or "classification"
+    """
+
+    rng = np.random.RandomState(seed)
+
+    if setting == "gaussian_quad":
+
+        p = 2
+
+        Sigma = np.array([
+            [1.0, cor],
+            [cor, 1.0]
+        ])
+
+        X = rng.multivariate_normal(
+            mean=np.zeros(p),
+            cov=Sigma,
+            size=n
+        )
+
+        y = X[:, 0] ** 2 + rng.normal(0, 1, n)
+
+        true_imp = np.array([1, 0])
+
+        return X, y, true_imp, "regression"
+
+    elif setting == "nongaussian_quad":
+
+        p = 2
+
+        Sigma = np.array([
+            [1.0, cor],
+            [cor, 1.0]
+        ])
+
+        Z = rng.multivariate_normal(
+            mean=np.zeros(p),
+            cov=Sigma,
+            size=n
+        )
+
+        U = norm.cdf(Z)
+
+        X = chi2.ppf(U, df=3)
+
+        y = X[:, 0] ** 2 + rng.normal(0, 1, n)
+
+        true_imp = np.array([1, 0])
+
+        return X, y, true_imp, "regression"
+
+    elif setting == "linear_sparse":
+
+        p = 100
+
+        Sigma = cor ** np.abs(
+            np.subtract.outer(np.arange(p), np.arange(p))
+        )
+
+        X = rng.multivariate_normal(
+            mean=np.zeros(p),
+            cov=Sigma,
+            size=n
+        )
+
+        beta = np.zeros(p)
+        important = np.arange(1, p, 10)
+
+        beta[important] = 1.0
+
+        y = X @ beta + rng.normal(0, 1, n)
+
+        true_imp = (beta != 0).astype(int)
+
+        return X, y, true_imp, "regression"
+
+    elif setting == "linear_nonsparse":
+
+        p = 100
+
+        Sigma = cor ** np.abs(
+            np.subtract.outer(np.arange(p), np.arange(p))
+        )
+
+        X = rng.multivariate_normal(
+            mean=np.zeros(p),
+            cov=Sigma,
+            size=n
+        )
+
+        beta = np.zeros(p)
+        important = np.arange(1, p, 3)
+
+        beta[important] = 1.0
+
+        y = X @ beta + rng.normal(0, 1, n)
+
+        true_imp = (beta != 0).astype(int)
+
+        return X, y, true_imp, "regression"
+
+    elif setting == "interaction_sparse":
+
+        p = 100
+
+        Sigma = cor ** np.abs(
+            np.subtract.outer(np.arange(p), np.arange(p))
+        )
+
+        X = rng.multivariate_normal(
+            mean=np.zeros(p),
+            cov=Sigma,
+            size=n
+        )
+
+        y = (
+            X[:, 1] * X[:, 11]
+            + X[:, 21] ** 2
+            + np.sin(X[:, 31])
+            + X[:, 41] * X[:, 51]
+            + X[:, 61] ** 2
+            + rng.normal(0, 1, n)
+        )
+
+        true_imp = np.zeros(p, dtype=int)
+
+        true_imp[[1, 11, 21, 31, 41, 51, 61]] = 1
+
+        return X, y, true_imp, "regression"
+
+    elif setting == "friedman":
+
+        X, y = make_friedman1(
+            n_samples=n,
+            n_features=10,
+            noise=1.0,
+            random_state=seed
+        )
+
+        true_imp = np.array(
+            [1, 1, 1, 1, 1, 0, 0, 0, 0, 0]
+        )
+
+        return X, y, true_imp, "regression"
+    
+    elif setting == "classification_lin":
+
+        p = 20
+
+        Sigma = cor ** np.abs(
+            np.subtract.outer(np.arange(p), np.arange(p))
+        )
+
+        X = rng.multivariate_normal(
+            mean=np.zeros(p),
+            cov=Sigma,
+            size=n
+        )
+
+
+        beta = np.zeros(p)
+        important = np.arange(1, p, 3)
+
+        beta[important] = (-1) ** np.arange(len(important))
+
+        eta = X @ beta 
+
+
+        prob = 1 / (1 + np.exp(-eta))
+
+        y = rng.binomial(1, prob)
+
+        true_imp = (beta != 0).astype(int)
+
+        return X, y, true_imp, "classification"
+
+    elif setting == "classification_cplx":
+
+        p = 20
+
+        Sigma = cor ** np.abs(
+            np.subtract.outer(np.arange(p), np.arange(p))
+        )
+
+        X = rng.multivariate_normal(
+            mean=np.zeros(p),
+            cov=Sigma,
+            size=n
+        )
+
+        eta = (
+            2.0 * X[:, 0]
+            - 1.5 * X[:, 1]
+            + X[:, 2] * X[:, 3]
+            + np.sin(X[:, 4])
+        )
+
+        prob = 1 / (1 + np.exp(-eta))
+
+        y = rng.binomial(1, prob)
+
+        true_imp = np.zeros(p, dtype=int)
+        true_imp[:5] = 1
+
+        return X, y, true_imp, "classification"
+
+    else:
+
+        raise ValueError(
+            f"Unknown setting '{setting}'"
+        )
+    
 
 def best_mod_cat(X_train, y_train, seed=2025, n_jobs=10, verbose=False, regressor=None, dict_reg=None, super_learner=False):
     """
@@ -646,3 +926,148 @@ def best_mod_cat(X_train, y_train, seed=2025, n_jobs=10, verbose=False, regresso
 
 
     
+def return_model(
+    X_train,
+    y_train,
+    seed=42,
+    n_jobs=1,
+    regressor=None,
+    verbose=False
+):
+
+    base_models = [
+        ("lr", LinearRegression()),
+        ("lasso", Lasso()),
+        ("dt", DecisionTreeRegressor(random_state=seed)),
+        ("rf", RandomForestRegressor(random_state=seed)),
+        ("et", ExtraTreesRegressor(random_state=seed)),
+        ("gb", GradientBoostingRegressor(random_state=seed)),
+        ("hgb", HistGradientBoostingRegressor(random_state=seed)),
+        ("ab", AdaBoostRegressor(random_state=seed)),
+        ("bag", BaggingRegressor(random_state=seed)),
+        ("mlp", MLPRegressor(random_state=seed, max_iter=1000)),
+        ("svr", SVR()),
+        ("knn", KNeighborsRegressor()),
+    ]
+
+    models = {
+        **dict(base_models),
+
+        "xgb": XGBRegressor(random_state=seed),
+
+        "SuperLearner": StackingRegressor(
+            estimators=base_models,
+            final_estimator=LinearRegression()
+        ),
+
+        "TabICL": TabICLRegressor()
+    }
+
+    grids = {
+
+        "lr": {},
+
+        "lasso": {
+            "alpha": [1e-4, 1e-3, 1e-2, 1e-1, 1]
+        },
+
+        "dt": {
+            "max_depth": [None, 5, 10, 20],
+            "min_samples_leaf": [1, 5, 10]
+        },
+
+        "rf": {
+            "n_estimators": [100, 300],
+            "max_depth": [None, 10, 30]
+        },
+
+        "et": {
+            "n_estimators": [100, 300],
+            "max_depth": [None, 10, 30]
+        },
+
+        "gb": {
+            "n_estimators": [100, 300],
+            "learning_rate": [0.01, 0.1]
+        },
+
+        "hgb": {
+            "learning_rate": [0.01, 0.1],
+            "max_iter": [100, 300]
+        },
+
+        "ab": {
+            "n_estimators": [50, 200],
+            "learning_rate": [0.01, 0.1, 1]
+        },
+
+        "bag": {
+            "n_estimators": [10, 50, 100]
+        },
+
+        "mlp": {
+            "hidden_layer_sizes": [(50,), (100,), (100, 50)],
+            "alpha": [1e-4, 1e-2]
+        },
+
+        "svr": {
+            "C": [0.1, 1, 10],
+            "kernel": ["rbf", "linear"]
+        },
+
+        "knn": {
+            "n_neighbors": [3, 5, 10]
+        },
+
+        "xgb": {
+            "n_estimators": [100, 300],
+            "learning_rate": [0.01, 0.1],
+            "max_depth": [3, 7]
+        },
+
+        "SuperLearner": {
+            "final_estimator__fit_intercept": [True, False]
+        },
+
+        "TabICL": {}
+    }
+
+    # Tune one model only
+    if regressor is not None:
+
+        model = models[regressor]
+        grid = grids[regressor]
+
+        tuned_model, score = hypertune_predictor(
+            model,
+            X_train,
+            y_train,
+            grid,
+            n_jobs=n_jobs
+        )
+
+        return (tuned_model, score) if verbose else tuned_model
+
+    # Search all models
+    best_model = None
+    best_score = -np.inf
+
+    for name, model in models.items():
+
+        tuned_model, score = hypertune_predictor(
+            model,
+            X_train,
+            y_train,
+            grids[name],
+            n_jobs=n_jobs
+        )
+
+        print(f"{name}: {score:.4f}")
+
+        if score > best_score:
+            best_score = score
+            best_model = tuned_model
+
+    print(f"Best: {best_model.__class__.__name__} ({best_score:.4f})")
+
+    return (best_model, best_score) if verbose else best_model

@@ -6,7 +6,7 @@ import numpy as np
 import vimpy
 from sobol_CPI import Sobol_CPI
 import pandas as pd
-from utils import best_mod, GenToysDataset, best_mod_cat
+from utils import return_model
 from sklearn.model_selection import GridSearchCV, train_test_split
 from sklearn.linear_model import LassoCV
 from sklearn.ensemble import GradientBoostingRegressor
@@ -26,12 +26,14 @@ from pathlib import Path
 def parse_args():
     parser = argparse.ArgumentParser(description="Convergence rates")
     parser.add_argument("--seeds", type=int, nargs="+", help="List of seeds")
+    parser.add_argument("--correlation", type=float)
+    parser.add_argument("--model", type=str)
     return parser.parse_args()
 
 
 def main(args):
-    
-
+    correlation_strength = args.correlation
+    regressor = args.model
     for s in args.seeds:
         # Load RData file
         result = pyreadr.read_r('data/bike.RData')  # returns a dictionary
@@ -73,14 +75,37 @@ def main(args):
         X_test_df = pd.DataFrame(X_test, columns=X.columns)
         y_test_df = pd.DataFrame(y_test)
         y_train_df = pd.DataFrame(y_train)  
-        p = X.shape[1]
+        rng = np.random.default_rng(s)
+
+        signal_train = (
+            0.5 * X_train_df["temp"] +
+            0.3 * X_train_df["hum"] -
+            0.2 * X_train_df["windspeed"]
+        )
+
+        signal_test = (
+            0.5 * X_test_df["temp"] +
+            0.3 * X_test_df["hum"] -
+            0.2 * X_test_df["windspeed"]
+        )
+
+        
+        X_train_df["spurious"] = (
+            correlation_strength * (signal_train - signal_train.mean()) / signal_train.std()
+            + np.sqrt(1 - correlation_strength**2) * rng.normal(size=len(signal_train))
+        )
+        X_test_df["spurious"] = (
+            correlation_strength * (signal_test - signal_train.mean()) / signal_train.std()
+            + np.sqrt(1 - correlation_strength**2) * rng.normal(size=len(signal_test))
+        )
+        X_train = X_train_df.to_numpy()
+        X_test = X_test_df.to_numpy()
+        X = np.vstack([X_train, X_test])
+
+        p = X_train.shape[1]
         print(p)
-        print(X.columns)
-        y_method = "bike"
-        super_learner=False
-        n_jobs=10
-        best_model= 'rf'#'fast_gradBoost'#'rf' #'gradBoost' #  
-        dict_model=None
+        print(X_train_df.columns)
+        n_jobs=5
 
         rng = np.random.RandomState(s)
 
@@ -88,7 +113,14 @@ def main(args):
 
         
         
-        model=best_mod(X_train, y_train, seed=s, regressor=best_model, dict_reg=dict_model, super_learner=super_learner)
+        model=return_model(
+            X_train,
+            y_train,
+            seed=s,
+            n_jobs=n_jobs,
+            regressor=regressor,
+            verbose=False
+        )
 
         scoring = [mean_squared_error, r2_score]
         names = ['MSE', 'r2_score']
@@ -182,9 +214,6 @@ def main(args):
 
     
         #LOCO Williamson
-        imputer_w = IterativeImputer(random_state=s)
-        # Fit on training data
-        X_w= imputer_w.fit_transform(X)
         ntrees = np.arange(100, 500, 100)
         lr = np.arange(.01, .1, .05)
         param_grid = [{'n_estimators':ntrees, 'learning_rate':lr}]
@@ -192,7 +221,7 @@ def main(args):
         cv_full = GridSearchCV(GradientBoostingRegressor(loss = 'squared_error', max_depth = 3), param_grid = param_grid, cv = 5, n_jobs=n_jobs)
         for j in range(p):
             print("covariate: "+str(j))
-            vimp = vimpy.vim(y = y.values, x = X_w, s = j, pred_func = cv_full, measure_type = "r_squared")
+            vimp = vimpy.vim(y = y.values, x = X, s = j, pred_func = cv_full, measure_type = "r_squared")
             vimp.get_point_est()
             vimp.get_influence_function()
             vimp.get_se()
@@ -237,18 +266,11 @@ def main(args):
                 f_res1["imp_V"+str(k)]=importance_score[i, k]
             f_res1=pd.DataFrame(f_res1)
             f_res=pd.concat([f_res, f_res1], ignore_index=True)
-        if super_learner:
-            csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../results/csv/conv_rates/bike_{y_method}_super_seed{s}.csv"))
-            f_res.to_csv(
-            csv_path,
-            index=False,
-            ) 
-        else:
-            csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../results/csv/conv_rates/bike_{y_method}_model{best_model}_seed{s}.csv"))
-            f_res.to_csv(
-            csv_path,
-            index=False,
-            ) 
+        csv_path = os.path.abspath(os.path.join(os.path.dirname(__file__), f"../results/csv/bike/bike_spurious_model{regressor}_corr{correlation_strength}_seed{s}.csv"))
+        f_res.to_csv(
+        csv_path,
+        index=False,
+        ) 
 
 
 
