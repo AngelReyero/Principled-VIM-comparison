@@ -119,7 +119,7 @@ for regressor in models:
 
         ax.axhline(0, color='black', linestyle=':', linewidth=0.5)
 
-        plt.xticks(rotation=45)
+        plt.xticks(rotation=45, ha='right')
         mean_r2 = df['r2'].mean()
         plt.title(fr"Feature importance for bike dataset, $R^2 = {mean_r2:.2f}$", fontsize=25)
         ax.tick_params(axis='x', labelsize=18)
@@ -224,7 +224,7 @@ for regressor in models:
             legend_elements.append(patch)
 
 
-        plt.xticks(rotation=45)
+        plt.xticks(rotation=45, ha='right')
         mean_r2 = df['r2'].mean()
         plt.title(fr"Feature importance for bike dataset, $R^2 = {mean_r2:.2f}$", fontsize=25)
         ax.tick_params(axis='x', labelsize=18)
@@ -328,7 +328,7 @@ for regressor in models:
             legend_elements.append(patch)
 
 
-        plt.xticks(rotation=45)
+        #plt.xticks(rotation=45, ha='right')
         mean_r2 = df['r2'].mean()
         plt.title(fr"Feature importance for bike dataset, $R^2 = {mean_r2:.2f}$", fontsize=25)
         ax.tick_params(axis='x', labelsize=18)
@@ -432,7 +432,7 @@ for regressor in models:
             legend_elements.append(patch)
 
 
-        plt.xticks(rotation=45)
+        #plt.xticks(rotation=45, ha='right')
         mean_r2 = df['r2'].mean()
         plt.title(fr"Feature importance for bike dataset, $R^2 = {mean_r2:.2f}$", fontsize=25)
         ax.tick_params(axis='x', labelsize=18)
