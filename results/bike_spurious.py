@@ -114,7 +114,7 @@ for regressor in models:
         # Replace the values in 'Variable'
         df_long['Variable'] = df_long['Variable'].map(var_mapping)
         ax = sns.boxplot(data=df_long, x='Variable', y='Importance', hue='method', palette=palette)
-        plt.ylim(-1, 1)
+        plt.ylim(-0.5, 1)
 
 
         ax.axhline(0, color='black', linestyle=':', linewidth=0.5)
