@@ -160,7 +160,10 @@ for setting in settings:
         # Shared color scale
         # ------------------------------------
         vmin = min(true_mean.min().min(), null_mean.min().min())
-        vmax = max(true_mean.max().max(), null_mean.max().max())
+        if setting == "interaction_sparse" and correlation_strength==0.9:
+            vmax = 1.5
+        else:
+            vmax = max(true_mean.max().max(), null_mean.max().max())
 
         # ------------------------------------
         # Plot
