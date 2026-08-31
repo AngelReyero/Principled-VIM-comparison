@@ -15,7 +15,7 @@ models = [
     "SuperLearner", "TabICL"
 ]
 
-settings = ["gaussian_quad", "nongaussian_quad","linear_sparse", "interaction_sparse","friedman","classification_lin","classification_cplx"]
+settings = ["gaussian_quad", "nongaussian_quad","linear_sparse","linear_nonsparse", "interaction_sparse","friedman","classification_lin","classification_cplx"]
 
 for setting in settings:
     for correlation_strength in correlations:

@@ -77,7 +77,7 @@ def main(args):
             # TabPFN (deep prior model for tabular data)
             #"TabICL": TabICLRegressor()
         }
-        if setting not in {"linear_sparse", "interaction_sparse"}:
+        if setting not in {"linear_sparse", "interaction_sparse", "linear_nonsparse", "hd_interaction_sparse"}:
             models["TabICL"] = TabICLRegressor()
 
 
